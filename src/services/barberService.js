@@ -1,85 +1,57 @@
-const barberRepository = require('../repositories/barberRepository');
+import api from '../config/api';
 
 class BarberService {
-  async createBarber(barberData) {
-    return await barberRepository.create(barberData);
-  }
-
-  async getAllBarbers(options = {}) {
-    return await barberRepository.findAll(options);
+  async getBarbers(params = {}) {
+    const response = await api.get('/barbers', { params });
+    return response.data;
   }
 
   async getActiveBarbers() {
-    return await barberRepository.findActive();
-  }
-
-  async getBarberById(id) {
-    const barber = await barberRepository.findById(id);
-    if (!barber) {
-      throw new Error('Barber not found');
-    }
-    return barber;
-  }
-
-  async updateBarber(id, updateData) {
-    const barber = await barberRepository.update(id, updateData);
-    if (!barber) {
-      throw new Error('Barber not found');
-    }
-    return barber;
-  }
-
-  async deleteBarber(id) {
-    const deleted = await barberRepository.delete(id);
-    if (!deleted) {
-      throw new Error('Barber not found');
-    }
-    return { message: 'Barber deleted successfully' };
+    const response = await api.get('/barbers/active');
+    return response.data.data;
   }
 
   async getAvailableBarbers(date, time) {
-    return await barberRepository.findAvailable(date, time);
+    const response = await api.get('/barbers/available', {
+      params: { date, time }
+    });
+    return response.data.data;
+  }
+
+  async getBarberById(id) {
+    const response = await api.get(`/barbers/${id}`);
+    return response.data.data;
+  }
+
+  async createBarber(barberData) {
+    const response = await api.post('/barbers', barberData);
+    return response.data.data;
+  }
+
+  async updateBarber(id, barberData) {
+    const response = await api.put(`/barbers/${id}`, barberData);
+    return response.data.data;
+  }
+
+  async deleteBarber(id) {
+    const response = await api.delete(`/barbers/${id}`);
+    return response.data;
   }
 
   async toggleBarberStatus(id) {
-    const barber = await barberRepository.findById(id);
-    if (!barber) {
-      throw new Error('Barber not found');
-    }
-
-    const updatedBarber = await barberRepository.update(id, {
-      isAvailable: !barber.isAvailable
-    });
-
-    return updatedBarber;
+    const response = await api.patch(`/barbers/${id}/toggle-status`);
+    return response.data.data;
   }
 
   async updateWorkingHours(id, workingHours) {
-    const barber = await barberRepository.update(id, { workingHours });
-    if (!barber) {
-      throw new Error('Barber not found');
-    }
-    return barber;
+    const response = await api.put(`/barbers/${id}/working-hours`, { workingHours });
+    return response.data.data;
   }
 
-  async updateRating(id, newRating) {
-    const barber = await barberRepository.findById(id);
-    if (!barber) {
-      throw new Error('Barber not found');
-    }
-
-    // Calculate new average rating
-    const totalBookings = barber.totalBookings || 0;
-    const currentAverage = barber.averageRating || 5.0;
-    const newAverage = ((currentAverage * totalBookings) + newRating) / (totalBookings + 1);
-
-    const updatedBarber = await barberRepository.update(id, {
-      averageRating: parseFloat(newAverage.toFixed(1)),
-      totalBookings: totalBookings + 1
-    });
-
-    return updatedBarber;
+  async updateRating(id, rating) {
+    const response = await api.post(`/barbers/${id}/rating`, { rating });
+    return response.data.data;
   }
 }
 
-module.exports = new BarberService();
+export default new BarberService();

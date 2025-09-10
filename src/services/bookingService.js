@@ -1,179 +1,73 @@
-const bookingRepository = require('../repositories/bookingRepository');
-const serviceRepository = require('../repositories/serviceRepository');
-const barberRepository = require('../repositories/barberRepository');
+import api from '../config/api';
 
 class BookingService {
-  async createBooking(bookingData) {
-    const {
-      customerName,
-      customerPhone,
-      customerEmail,
-      service,
-      barber,
-      bookingDate,
-      bookingTime,
-      message,
-      serviceId,
-      barberId
-    } = bookingData;
-
-    // Check if time slot is available
-    if (barberId) {
-      const isAvailable = await bookingRepository.checkTimeSlotAvailability(
-        barberId,
-        bookingDate,
-        bookingTime
-      );
-
-      if (!isAvailable) {
-        throw new Error('This time slot is already booked');
-      }
-    }
-
-    // Get service details for pricing
-    let serviceDetails = null;
-    if (serviceId) {
-      serviceDetails = await serviceRepository.findById(serviceId);
-    }
-
-    const booking = await bookingRepository.create({
-      customerName,
-      customerPhone,
-      customerEmail,
-      service,
-      barber,
-      bookingDate,
-      bookingTime,
-      message,
-      serviceId,
-      barberId,
-      price: serviceDetails?.price || null,
-      duration: serviceDetails?.duration || null
-    });
-
-    return await bookingRepository.findById(booking.id);
-  }
-
-  async getAllBookings(options = {}) {
-    return await bookingRepository.findAll(options);
+  async getBookings(params = {}) {
+    const response = await api.get('/bookings', { params });
+    return response.data;
   }
 
   async getBookingById(id) {
-    const booking = await bookingRepository.findById(id);
-    if (!booking) {
-      throw new Error('Booking not found');
-    }
-    return booking;
+    const response = await api.get(`/bookings/${id}`);
+    return response.data.data;
   }
 
-  async updateBooking(id, updateData) {
-    const {
-      barberId,
-      bookingDate,
-      bookingTime,
-      ...otherData
-    } = updateData;
+  async createBooking(bookingData) {
+    const response = await api.post('/bookings', bookingData);
+    return response.data.data;
+  }
 
-    // If updating time/date/barber, check availability
-    if (barberId && bookingDate && bookingTime) {
-      const isAvailable = await bookingRepository.checkTimeSlotAvailability(
-        barberId,
-        bookingDate,
-        bookingTime,
-        id // exclude current booking from check
-      );
-
-      if (!isAvailable) {
-        throw new Error('This time slot is already booked');
-      }
-    }
-
-    const booking = await bookingRepository.update(id, updateData);
-    if (!booking) {
-      throw new Error('Booking not found');
-    }
-    return booking;
+  async updateBooking(id, bookingData) {
+    const response = await api.put(`/bookings/${id}`, bookingData);
+    return response.data.data;
   }
 
   async cancelBooking(id) {
-    const booking = await bookingRepository.update(id, { status: 'cancelled' });
-    if (!booking) {
-      throw new Error('Booking not found');
-    }
-    return booking;
+    const response = await api.patch(`/bookings/${id}/cancel`);
+    return response.data.data;
   }
 
   async confirmBooking(id) {
-    const booking = await bookingRepository.update(id, { 
-      status: 'confirmed',
-      confirmationSent: true
-    });
-    if (!booking) {
-      throw new Error('Booking not found');
-    }
-    return booking;
+    const response = await api.patch(`/bookings/${id}/confirm`);
+    return response.data.data;
   }
 
   async completeBooking(id) {
-    const booking = await bookingRepository.update(id, { status: 'completed' });
-    if (!booking) {
-      throw new Error('Booking not found');
-    }
-    return booking;
+    const response = await api.patch(`/bookings/${id}/complete`);
+    return response.data.data;
   }
 
   async deleteBooking(id) {
-    const deleted = await bookingRepository.delete(id);
-    if (!deleted) {
-      throw new Error('Booking not found');
-    }
-    return { message: 'Booking deleted successfully' };
-  }
-
-  async getBookingsByDateRange(startDate, endDate) {
-    return await bookingRepository.findByDateRange(startDate, endDate);
-  }
-
-  async getBarberSchedule(barberId, date) {
-    return await bookingRepository.findByBarberAndDate(barberId, date);
+    const response = await api.delete(`/bookings/${id}`);
+    return response.data;
   }
 
   async getAvailableTimeSlots(barberId, date) {
-    const barber = await barberRepository.findById(barberId);
-    if (!barber) {
-      throw new Error('Barber not found');
-    }
+    const response = await api.get('/bookings/available-slots', {
+      params: { barberId, date }
+    });
+    return response.data.data;
+  }
 
-    const bookings = await bookingRepository.findByBarberAndDate(barberId, date);
-    const bookedTimes = bookings.map(booking => booking.bookingTime);
-
-    // Generate available time slots (example: 9:00 AM to 9:00 PM, 30-minute intervals)
-    const availableSlots = [];
-    const startHour = 9;
-    const endHour = 21;
-
-    for (let hour = startHour; hour < endHour; hour++) {
-      for (let minute = 0; minute < 60; minute += 30) {
-        const timeSlot = `${hour.toString().padStart(2, '0')}:${minute.toString().padStart(2, '0')}:00`;
-        if (!bookedTimes.includes(timeSlot)) {
-          availableSlots.push(timeSlot);
-        }
-      }
-    }
-
-    return availableSlots;
+  async getBarberSchedule(barberId, date) {
+    const response = await api.get(`/bookings/barber/${barberId}/schedule`, {
+      params: { date }
+    });
+    return response.data.data;
   }
 
   async getBookingStats(startDate, endDate) {
-    return await bookingRepository.getBookingStats(startDate, endDate);
+    const response = await api.get('/bookings/stats', {
+      params: { startDate, endDate }
+    });
+    return response.data.data;
   }
 
   async searchBookings(query) {
-    return await bookingRepository.findAll({
-      search: query,
-      limit: 50
+    const response = await api.get('/bookings/search', {
+      params: { q: query }
     });
+    return response.data.data;
   }
 }
 
-module.exports = new BookingService();
+export default new BookingService();

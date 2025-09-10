@@ -1,79 +1,55 @@
-const serviceRepository = require('../repositories/serviceRepository');
+import api from '../config/api';
 
 class ServiceService {
-  async createService(serviceData) {
-    return await serviceRepository.create(serviceData);
-  }
-
-  async getAllServices(options = {}) {
-    return await serviceRepository.findAll(options);
+  async getServices(params = {}) {
+    const response = await api.get('/services', { params });
+    return response.data;
   }
 
   async getActiveServices() {
-    return await serviceRepository.findActive();
+    const response = await api.get('/services/active');
+    return response.data.data;
   }
 
   async getPopularServices() {
-    return await serviceRepository.findPopular();
-  }
-
-  async getServicesByCategory(category) {
-    return await serviceRepository.findByCategory(category);
-  }
-
-  async getServiceById(id) {
-    const service = await serviceRepository.findById(id);
-    if (!service) {
-      throw new Error('Service not found');
-    }
-    return service;
-  }
-
-  async updateService(id, updateData) {
-    const service = await serviceRepository.update(id, updateData);
-    if (!service) {
-      throw new Error('Service not found');
-    }
-    return service;
-  }
-
-  async deleteService(id) {
-    const deleted = await serviceRepository.delete(id);
-    if (!deleted) {
-      throw new Error('Service not found');
-    }
-    return { message: 'Service deleted successfully' };
+    const response = await api.get('/services/popular');
+    return response.data.data;
   }
 
   async getCategories() {
-    return await serviceRepository.getCategories();
+    const response = await api.get('/services/categories');
+    return response.data.data;
+  }
+
+  async getServiceById(id) {
+    const response = await api.get(`/services/${id}`);
+    return response.data.data;
+  }
+
+  async createService(serviceData) {
+    const response = await api.post('/services', serviceData);
+    return response.data.data;
+  }
+
+  async updateService(id, serviceData) {
+    const response = await api.put(`/services/${id}`, serviceData);
+    return response.data.data;
+  }
+
+  async deleteService(id) {
+    const response = await api.delete(`/services/${id}`);
+    return response.data;
   }
 
   async toggleServiceStatus(id) {
-    const service = await serviceRepository.findById(id);
-    if (!service) {
-      throw new Error('Service not found');
-    }
-
-    const updatedService = await serviceRepository.update(id, {
-      isActive: !service.isActive
-    });
-
-    return updatedService;
+    const response = await api.patch(`/services/${id}/toggle-status`);
+    return response.data.data;
   }
 
   async togglePopularStatus(id) {
-    const service = await serviceRepository.findById(id);
-    if (!service) {
-      throw new Error('Service not found');
-    }
-
-    const updatedService = await serviceRepository.update(id, {
-      popular: !service.popular
-    });
-
-    return updatedService;
+    const response = await api.patch(`/services/${id}/toggle-popular`);
+    return response.data.data;
   }
 }
 
-module.exports = new ServiceService();
+export default new ServiceService();

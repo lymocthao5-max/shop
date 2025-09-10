@@ -1,110 +1,64 @@
-const userRepository = require('../repositories/userRepository');
-const generateToken = require('../utils/generateToken');
+import api from '../config/api';
 
 class AuthService {
-  async register(userData) {
-    const { name, email, password, phone, role = 'customer' } = userData;
-
-    // Check if user already exists
-    const existingUser = await userRepository.findByEmail(email);
-    if (existingUser) {
-      throw new Error('User with this email already exists');
-    }
-
-    if (phone) {
-      const existingPhone = await userRepository.findByPhone(phone);
-      if (existingPhone) {
-        throw new Error('User with this phone number already exists');
-      }
-    }
-
-    // Create user
-    const user = await userRepository.create({
-      name,
-      email,
-      password,
-      phone,
-      role
-    });
-
-    // Generate token
-    const token = generateToken(user.id);
-
-    return {
-      user,
-      token
-    };
-  }
-
   async login(email, password) {
-    // Find user by email
-    const user = await userRepository.findByEmail(email);
-    if (!user) {
-      throw new Error('Invalid credentials');
-    }
-
-    // Check if user is active
-    if (!user.isActive) {
-      throw new Error('Account is deactivated');
-    }
-
-    // Check password
-    const isPasswordValid = await user.comparePassword(password);
-    if (!isPasswordValid) {
-      throw new Error('Invalid credentials');
-    }
-
-    // Update last login
-    await userRepository.updateLastLogin(user.id);
-
-    // Generate token
-    const token = generateToken(user.id);
-
-    return {
-      user,
-      token
-    };
+    const response = await api.post('/auth/login', { email, password });
+    const { user, token } = response.data.data;
+    
+    localStorage.setItem('token', token);
+    localStorage.setItem('user', JSON.stringify(user));
+    
+    return { user, token };
   }
 
-  async getProfile(userId) {
-    const user = await userRepository.findById(userId);
-    if (!user) {
-      throw new Error('User not found');
-    }
+  async register(userData) {
+    const response = await api.post('/auth/register', userData);
+    const { user, token } = response.data.data;
+    
+    localStorage.setItem('token', token);
+    localStorage.setItem('user', JSON.stringify(user));
+    
+    return { user, token };
+  }
 
+  async getProfile() {
+    const response = await api.get('/auth/profile');
+    return response.data.data;
+  }
+
+  async updateProfile(userData) {
+    const response = await api.put('/auth/profile', userData);
+    const user = response.data.data;
+    
+    localStorage.setItem('user', JSON.stringify(user));
     return user;
   }
 
-  async updateProfile(userId, updateData) {
-    const { password, ...otherData } = updateData;
-
-    // If password is being updated, it will be hashed by the model hook
-    const dataToUpdate = password ? updateData : otherData;
-
-    const user = await userRepository.update(userId, dataToUpdate);
-    if (!user) {
-      throw new Error('User not found');
-    }
-
-    return user;
+  async changePassword(currentPassword, newPassword) {
+    const response = await api.put('/auth/change-password', {
+      currentPassword,
+      newPassword
+    });
+    return response.data;
   }
 
-  async changePassword(userId, currentPassword, newPassword) {
-    const user = await userRepository.findById(userId);
-    if (!user) {
-      throw new Error('User not found');
-    }
+  logout() {
+    localStorage.removeItem('token');
+    localStorage.removeItem('user');
+  }
 
-    // Verify current password
-    const isCurrentPasswordValid = await user.comparePassword(currentPassword);
-    if (!isCurrentPasswordValid) {
-      throw new Error('Current password is incorrect');
-    }
+  getCurrentUser() {
+    const user = localStorage.getItem('user');
+    return user ? JSON.parse(user) : null;
+  }
 
-    // Update password
-    const updatedUser = await userRepository.update(userId, { password: newPassword });
-    return updatedUser;
+  getToken() {
+    return localStorage.getItem('token');
+  }
+
+  isAuthenticated() {
+    return !!this.getToken();
   }
 }
 
-module.exports = new AuthService();
+export default new AuthService();
